@@ -4,6 +4,16 @@ from sqlalchemy import create_engine
 
 
 def load_data(messages_filepath, categories_filepath):
+    
+    '''
+    Parameters: 
+        messages_filepath - file path of diseaster message csv file
+        categories_filepath - file path of disaster categories csv file
+    
+    Returns:
+       df - merged dataframe of diseaster message and categories
+    
+    '''
     messages = pd.read_csv(messages_filepath)
     categories = pd.read_csv(categories_filepath)
     df = pd.merge(messages, categories, on='id')
@@ -12,6 +22,16 @@ def load_data(messages_filepath, categories_filepath):
 
 
 def clean_data(df):
+    
+    '''
+    Parameters: 
+       df - merged dataframe of diseaster message and categories
+    
+    Returns:
+       df - cleaned dataframe
+    
+    '''
+        
     categories = df['categories'].str.split(pat=';', expand=True)
     row = categories.iloc[0]
     category_colnames = row.apply(lambda x: x[:-2])
@@ -28,6 +48,16 @@ def clean_data(df):
     return df
 
 def save_data(df, database_filename):
+    
+     '''
+    Parameters: 
+        df - cleaned dataframe
+        database_filename - database name
+    
+    Returns:
+       SQLite database in data folder    
+    '''
+    
     engine = create_engine('sqlite:///' + database_filename)
     df.to_sql('DisasterMessages', engine, index=False)
   

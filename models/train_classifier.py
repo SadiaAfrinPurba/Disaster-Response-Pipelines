@@ -1,24 +1,126 @@
 import sys
+import pandas as pd
+from sqlalchemy import create_engine
+import nltk
+nltk.download('stopwords')
+import re
+import pickle
+
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords
+
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.model_selection import GridSearchCV
 
 
 def load_data(database_filepath):
-    pass
+    
+    '''
+    Parameters: 
+        database_filepath - file path of sqlite database
+    
+    Returns:
+       X - message data
+       Y - categories
+       category_names- labels for 36 categories
+    '''
+        
+    engine = create_engine('sqlite:///{}'.format(database_filepath))
+    df = pd.read_sql_table('DisasterMessages', engine)
+    X = df['message']
+    Y = df.iloc[:, 4:]
+    category_names = list(df.columns[4:])
+    
+    return X, Y, category_names
 
 
 def tokenize(text):
-    pass
-
+    
+    '''
+    Parameters: 
+        text - message texts
+    Returns:
+       lemmed - cleaned texts
+    '''
+    
+    
+    text = re.sub(r"[^a-zA-Z0-9]", ' ', text.lower())
+    
+    words = word_tokenize(text)
+    words = [w for w in words if w not in stopwords.words('english')]
+    
+    lemmatizer = WordNetLemmatizer()
+    lemmed = [lemmatizer.lemmatize(w, pos='n').strip() for w in words]
+    lemmed = [lemmatizer.lemmatize(w, pos='v').strip() for w in lemmed]
+    
+    return lemmed
 
 def build_model():
-    pass
+    
+    '''
+    Build a machine learning pipeline using count-vectorizer, Tf-Idf, and Random forest
+    
+    Returns
+      Results of GridSearchCV
+    '''
+    
+    pipeline = Pipeline([
+                        ('vect', CountVectorizer(tokenizer=tokenize)),
+                        ('tfidf', TfidfTransformer()),
+                        ('clf', MultiOutputClassifier(RandomForestClassifier()))
+                        ])
+    
+    parameters = {'clf__estimator__n_estimators': [50, 100],
+                  'clf__estimator__min_samples_split': [2, 3, 4],
+                  'clf__estimator__criterion': ['entropy', 'gini']
+                 }
+    
+    cv = GridSearchCV(pipeline, param_grid=parameters)
+    
+    return cv
 
 
 def evaluate_model(model, X_test, Y_test, category_names):
-    pass
+    
+    '''
+    Evaluate model performance
+    
+    Parameters
+      model - model to be evaluated
+      X_test - test messages
+      Y_test - true categories of the test messages
+      category_name - labels for 36 categories
+    
+    Returns
+     print accuracy and classification report for each category
+    '''
+    
+    Y_pred = model.predict(X_test)
+    for i in range(len(category_names)):
+        print("Category:", category_names[i],"\n", classification_report(Y_test.iloc[:, i].values, Y_pred[:, i]))
+        print('Accuracy of %25s: %.2f' %(category_names[i], accuracy_score(Y_test.iloc[:, i].values, Y_pred[:,i])))
 
 
 def save_model(model, model_filepath):
-    pass
+    
+    '''
+    Save the model as pickle file
+    
+    Parameters
+     model - model to be saved
+     model_filepath - path of the pickle file
+   
+   Returns
+     model saved as pickle format in the model_filepath destination    
+    '''
+    
+    pickle.dump(model, open(model_filepath, "wb"))
 
 
 def main():
