@@ -44,9 +44,9 @@ def tokenize(text):
     
     '''
     Parameters: 
-        text - message texts
+        text - message text
     Returns:
-       lemmed - cleaned texts
+       lemmed - cleaned text
     '''
     
     
